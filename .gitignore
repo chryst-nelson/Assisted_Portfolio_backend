@@ -1,0 +1,15 @@
+
+# Java
+/target
+*.class
+
+# Env
+.env
+.env.local
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
