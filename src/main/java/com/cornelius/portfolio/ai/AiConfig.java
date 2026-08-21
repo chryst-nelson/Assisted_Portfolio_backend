@@ -16,8 +16,15 @@ public class AiConfig {
     private Resource systemPromptResource;
 
     @Bean
-    public ChatClient chatClient(ChatClient.Builder builder) throws IOException {
+    public ChatClient chatClient(
+        ChatClient.Builder builder,
+        PortfolioTools portfolioTools,
+        KnowledgeBaseTools knowledgeBaseTools
+    ) throws IOException {
         String systemPrompt = systemPromptResource.getContentAsString(StandardCharsets.UTF_8);
-        return builder.defaultSystem(systemPrompt).build();
+        return builder
+            .defaultSystem(systemPrompt)
+            .defaultTools(portfolioTools, knowledgeBaseTools)
+            .build();
     }
 }
