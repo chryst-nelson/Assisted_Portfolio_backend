@@ -19,9 +19,7 @@ public interface ExperienceMapper {
 
     List<ExperienceResponse> toResponseList(List<Experience> experiences);
 
-    // Achievements are an owned collection requiring a back-reference to the
-    // parent Experience, which MapStruct can't wire on its own — the service
-    // layer builds that list after this mapping runs.
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "technologies", source = "technologyIds")
     @Mapping(target = "achievements", ignore = true)

@@ -1,0 +1,18 @@
+# EC2: backend only. Postgres is the Lightsail managed database (set in .env).
+# Bound to 127.0.0.1:8080; public traffic comes through host Nginx (HTTPS).
+services:
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: portfolio-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "127.0.0.1:8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

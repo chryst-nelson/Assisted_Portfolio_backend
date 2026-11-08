@@ -9,11 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Resolves technology IDs coming from admin CRUD requests into managed Skill
- * entities. MapStruct picks this up automatically wherever a mapping needs a
- * (List<Long> -> Set<Skill>) conversion (see ProjectMapper, ExperienceMapper).
- */
+
 @Component
 @RequiredArgsConstructor
 public class SkillResolver {

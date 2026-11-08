@@ -6,5 +6,6 @@ public record AchievementResponse(
     Long id,
     String title,
     String description,
-    LocalDate date
+    LocalDate date,
+    boolean verified
 ) {}

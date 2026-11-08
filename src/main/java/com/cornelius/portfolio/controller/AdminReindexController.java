@@ -1,7 +1,7 @@
 package com.cornelius.portfolio.controller;
 
 import com.cornelius.portfolio.dto.response.ReindexResponse;
-import com.cornelius.portfolio.service.RagIndexingService;
+import com.cornelius.portfolio.service.KnowledgeIndexService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminReindexController {
 
-    private final RagIndexingService ragIndexingService;
+    private final KnowledgeIndexService knowledgeIndexService;
 
     @PostMapping
     public ReindexResponse reindex() {
-        return new ReindexResponse(ragIndexingService.reindex());
+        return new ReindexResponse(knowledgeIndexService.reindex());
     }
 }
