@@ -13,7 +13,8 @@ public final class Bm25Index {
     private static final double K1 = 1.4;
     private static final double B = 0.75;
 
-    public record Hit(int doc, double score, int matchedTerms) {}
+    public record Hit(int doc, double score, int matchedTerms) {
+    }
 
     private final List<Map<String, Integer>> termFrequencies = new ArrayList<>();
     private final List<Integer> lengths = new ArrayList<>();

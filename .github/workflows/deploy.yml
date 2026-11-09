@@ -10,6 +10,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
 env:
   IMAGE_NAME: portfolio-backend
 
@@ -54,19 +58,23 @@ jobs:
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ env.IMAGE }}
+          SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: GHCR_USER,GHCR_TOKEN
+          envs: GHCR_USER,GHCR_TOKEN,IMAGE,SHA
           script: |
             set -e
             cd ~/portfolio
+            export BACKEND_IMAGE="${IMAGE}:${SHA}"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            docker image prune -f
             docker logout ghcr.io
+            docker image prune -af >/dev/null
+            docker builder prune -af >/dev/null 2>&1 || true
 
       - name: Smoke test
         run: |
