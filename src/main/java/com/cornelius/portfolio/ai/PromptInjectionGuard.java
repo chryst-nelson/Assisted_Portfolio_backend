@@ -22,11 +22,17 @@ public class PromptInjectionGuard {
     );
 
     public void check(String message) {
+        isSuspicious(message);
+    }
+
+    /** True (and logged) when the message looks like an attempt to override the assistant's rules. */
+    public boolean isSuspicious(String message) {
         for (Pattern pattern : SUSPICIOUS_PATTERNS) {
             if (pattern.matcher(message).find()) {
                 log.warn("Message matched a prompt-injection pattern ({}): {}", pattern.pattern(), message);
-                return; // one match is enough to log; no need to check the rest
+                return true; // one match is enough to log; no need to check the rest
             }
         }
+        return false;
     }
 }

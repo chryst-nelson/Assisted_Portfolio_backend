@@ -162,7 +162,90 @@ public class AnswerEngine {
 
     // ---- entry point ------------------------------------------------------------------------
 
+    /** The engine's reply, or a "couldn't find that" reply when it has nothing for the question. */
     public ChatMessageResponse answer(String message, String mode) {
+        ChatMessageResponse reply = tryAnswer(message, mode);
+        return reply != null ? reply : notFoundReply(message);
+    }
+
+    public ChatMessageResponse notFoundReply(String message) {
+        Knowledge k = knowledgeBase.current();
+        return notFound(new Query(message, k), k);
+    }
+
+    /**
+     * Used when no language model is available. Offers the closest passage in the portfolio
+     * (any one matching word will do) with a hedge, or the plain "couldn't find that" reply.
+     */
+    public ChatMessageResponse fallbackAnswer(String message, String mode) {
+        Knowledge k = knowledgeBase.current();
+        Query q = new Query(message, k);
+        List<String> base = new ArrayList<>();
+        for (String term : q.terms) {
+            if (!GENERIC_TERMS.contains(term) && !base.contains(term)) {
+                base.add(term);
+            }
+        }
+        if (!base.isEmpty()) {
+            List<Bm25Index.Hit> hits = k.index().search(Lexicon.withSynonyms(base));
+            if (!hits.isEmpty() && hits.get(0).score() >= MIN_SEARCH_SCORE) {
+                ChatMessageResponse best = render(q, k, hits, mode);
+                if (best != null) {
+                    return new ChatMessageResponse(best.type(),
+                        "I'm not sure that's exactly what you asked, but this is the closest match in his portfolio.\n\n"
+                            + best.message(),
+                        best.payload());
+                }
+            }
+        }
+        return notFound(q, k);
+    }
+
+    public String ownerName() {
+        return owner(knowledgeBase.current());
+    }
+
+    /** Portfolio passages most relevant to the question, as plain text for a language model's context. */
+    public List<String> context(String message, int max) {
+        Knowledge k = knowledgeBase.current();
+        Query q = new Query(message, k);
+        List<String> base = new ArrayList<>();
+        for (String term : q.terms) {
+            if (!GENERIC_TERMS.contains(term) && !base.contains(term)) {
+                base.add(term);
+            }
+        }
+        List<String> out = new ArrayList<>();
+        List<Bm25Index.Hit> hits = base.isEmpty() ? List.of() : k.index().search(Lexicon.withSynonyms(base));
+        for (Bm25Index.Hit hit : hits) {
+            if (out.size() >= max) {
+                break;
+            }
+            out.add(passageText(k.passages().get(hit.doc())));
+        }
+        if (out.isEmpty()) {
+            for (Knowledge.Passage passage : k.passages()) {
+                if (out.size() >= Math.min(max, 3)) {
+                    break;
+                }
+                if ("profile".equalsIgnoreCase(passage.kind()) || "skills".equalsIgnoreCase(passage.kind())) {
+                    out.add(passageText(passage));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static String passageText(Knowledge.Passage passage) {
+        String text = passage.searchText() == null ? "" : passage.searchText().trim();
+        if (text.length() > 900) {
+            text = text.substring(0, 900) + "...";
+        }
+        return passage.kind() + " - " + passage.title() + ": " + text;
+    }
+
+    /** The engine's own answer, or null when it has nothing for this question. */
+    public ChatMessageResponse tryAnswer(String message, String mode) {
         Knowledge k = knowledgeBase.current();
 
         Optional<String> faq = faqService.findAnswer(message);
@@ -183,7 +266,7 @@ public class AnswerEngine {
         if (reply == null) {
             reply = search(q, k, mode);
         }
-        return reply != null ? reply : notFound(q, k);
+        return reply;
     }
 
     // ---- query ------------------------------------------------------------------------------

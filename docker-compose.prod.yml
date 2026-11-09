@@ -1,4 +1,8 @@
-# EC2: backend only. Postgres is the Lightsail managed database (set in .env).
+# Backend server: Spring Boot only. Postgres = Lightsail (set in .env).
+# Ollama address comes from OLLAMA_BASE_URL in .env:
+#   - Ollama on another server:  http://<ollama-private-ip>:11434
+#   - Ollama on this server too: http://ollama:11434 and add  -f docker-compose.ollama.yml
+# Leave OLLAMA_BASE_URL empty to run on the rule-based engine alone.
 # Bound to 127.0.0.1:8080; public traffic comes through host Nginx (HTTPS).
 services:
   backend:
@@ -8,7 +12,7 @@ services:
     env_file: .env
     environment:
       SERVER_FORWARD_HEADERS_STRATEGY: native
-      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx512m
     ports:
       - "127.0.0.1:8080:8080"
     logging:

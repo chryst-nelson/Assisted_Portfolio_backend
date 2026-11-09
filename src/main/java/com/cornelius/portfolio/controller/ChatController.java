@@ -4,6 +4,10 @@ import com.cornelius.portfolio.ai.ChatMessageResponse;
 import com.cornelius.portfolio.dto.request.ChatRequest;
 import com.cornelius.portfolio.service.ChatOrchestrationService;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -19,10 +23,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Slf4j
 public class ChatController {
 
-    private static final long EMITTER_TIMEOUT_MS = 60_000L;
+    private static final long EMITTER_TIMEOUT_MS = 150_000L;
     private static final long CHUNK_DELAY_MS = 12L;
 
     private final ChatOrchestrationService chatOrchestrationService;
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     @PostMapping
     public ChatMessageResponse chat(@Valid @RequestBody ChatRequest request) {
@@ -34,21 +39,33 @@ public class ChatController {
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
 
-        try {
-            ChatMessageResponse response = chatOrchestrationService.handle(request);
+        // Work happens off the request thread so tokens reach the browser as they are produced.
+        executor.execute(() -> {
+            try {
+                ChatOrchestrationService.Outcome outcome = chatOrchestrationService.stream(request, token -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("token").data(token));
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e); // visitor left: stop generating
+                    }
+                });
+                ChatMessageResponse response = outcome.response();
 
-            for (String chunk : splitIntoChunks(response.message())) {
-                emitter.send(SseEmitter.event().name("token").data(chunk));
-                sleep(CHUNK_DELAY_MS);
+                if (!outcome.streamed()) {
+                    for (String chunk : splitIntoChunks(response.message())) {
+                        emitter.send(SseEmitter.event().name("token").data(chunk));
+                        sleep(CHUNK_DELAY_MS);
+                    }
+                }
+
+                emitter.send(SseEmitter.event().name("response").data(response, MediaType.APPLICATION_JSON));
+                emitter.complete();
+            } catch (Exception ex) {
+                log.error("Chat stream failed", ex);
+                sendErrorEvent(emitter, "Something went wrong. Please try again.");
+                emitter.complete();
             }
-
-            emitter.send(SseEmitter.event().name("response").data(response, MediaType.APPLICATION_JSON));
-            emitter.complete();
-        } catch (Exception ex) {
-            log.error("Chat stream failed", ex);
-            sendErrorEvent(emitter, "Something went wrong. Please try again.");
-            emitter.complete();
-        }
+        });
 
         return emitter;
     }
